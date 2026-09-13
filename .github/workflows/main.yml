@@ -1,0 +1,46 @@
+name: Extract ZIP into branch
+
+on:
+  workflow_dispatch:
+
+jobs:
+  extract:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Install unzip
+        run: sudo apt-get update && sudo apt-get install -y unzip
+
+      - name: Unzip archive into new branch
+        env:
+          ZIP_NAME: "یک_اپلیکیشن_حسابداری_حرفه_ای_1789294678765.zip"
+        run: |
+          set -e
+          TIMESTAMP=$(date +%s)
+          BRANCH="unpack-zip-${TIMESTAMP}"
+          if [ ! -f "$ZIP_NAME" ]; then
+            echo "Zip file '$ZIP_NAME' not found in repository root."
+            exit 1
+          fi
+          # Extract into a temporary directory to avoid partial overwrites
+          mkdir -p unpacked
+          unzip -o "$ZIP_NAME" -d unpacked
+          # Create new branch and commit the extracted files (put them at repo root)
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git checkout -b "$BRANCH"
+          # Move extracted contents to repo root (merge unpacked/ into repository)
+          shopt -s dotglob || true
+          mv unpacked/* . || true
+          git add .
+          if git diff --staged --quiet; then
+            echo "No changes to commit"
+          else
+            git commit -m "Unpack zip: $ZIP_NAME"
+            git push --set-upstream origin "$BRANCH"
+            echo "Pushed extracted files to branch: $BRANCH"
+          fi
