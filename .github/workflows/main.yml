@@ -1,5 +1,8 @@
 name: Extract ZIP into branch
 
+permissions:
+  contents: write
+
 on:
   workflow_dispatch:
 
@@ -11,6 +14,7 @@ jobs:
         uses: actions/checkout@v4
         with:
           fetch-depth: 0
+          persist-credentials: true
 
       - name: Install unzip
         run: sudo apt-get update && sudo apt-get install -y unzip
@@ -26,14 +30,11 @@ jobs:
             echo "Zip file '$ZIP_NAME' not found in repository root."
             exit 1
           fi
-          # Extract into a temporary directory to avoid partial overwrites
           mkdir -p unpacked
           unzip -o "$ZIP_NAME" -d unpacked
-          # Create new branch and commit the extracted files (put them at repo root)
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
           git checkout -b "$BRANCH"
-          # Move extracted contents to repo root (merge unpacked/ into repository)
           shopt -s dotglob || true
           mv unpacked/* . || true
           git add .
