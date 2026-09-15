@@ -1,4 +1,4 @@
-name: Extract Android Project
+name: Extract ZIP into Repository
 
 on:
   workflow_dispatch:
@@ -11,36 +11,33 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
-      - name: Checkout
+      - name: Checkout repository
         uses: actions/checkout@v4
 
-      - name: Find ZIP
-        id: zip
+      - name: Install unzip
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y unzip
+
+      - name: Extract ZIP
         run: |
           set -e
 
-          ZIP_FILE=$(find . -maxdepth 1 -type f -iname "*.zip" | head -n 1)
+          ZIP_FILE="NotificationToTelegram_BUILD_FIXED.zip"
 
-          if [ -z "$ZIP_FILE" ]; then
-            echo "No ZIP file found."
+          if [ ! -f "$ZIP_FILE" ]; then
+            echo "ZIP file not found: $ZIP_FILE"
             exit 1
           fi
 
-          echo "ZIP: $ZIP_FILE"
-          echo "zip_file=$ZIP_FILE" >> "$GITHUB_OUTPUT"
-
-      - name: Extract project
-        run: |
-          set -e
-
           mkdir -p extracted
 
-          unzip -o "${{ steps.zip.outputs.zip_file }}" -d extracted
+          unzip -o "$ZIP_FILE" -d extracted
 
-          echo "===== EXTRACTED FILES ====="
-          find extracted -type f | sort
+          echo "===== Extracted files ====="
+          find extracted -type f -print
 
-      - name: Copy Android project
+      - name: Move extracted files
         run: |
           set -e
 
@@ -48,28 +45,28 @@ jobs:
 
           rm -rf extracted
 
-          echo "===== PROJECT FILES ====="
-          find . -maxdepth 5 -type f \
-            ! -path "./.git/*" \
-            ! -name "*.zip" \
-            | sort
-
       - name: Remove ZIP
         run: |
-          rm -f "${{ steps.zip.outputs.zip_file }}"
+          rm -f "NotificationToTelegram_BUILD_FIXED.zip"
 
-      - name: Verify project
+      - name: Remove build workflow from ZIP
+        run: |
+          rm -f ".github/workflows/build_apk.yml"
+
+      - name: Verify Android project
         run: |
           set -e
 
-          test -f settings.gradle.kts
-          test -f build.gradle.kts
-          test -f app/build.gradle.kts
-          test -f app/src/main/AndroidManifest.xml
+          echo "===== Checking project ====="
 
-          echo "Android project detected successfully."
+          test -f "settings.gradle.kts"
+          test -f "build.gradle.kts"
+          test -f "app/build.gradle.kts"
+          test -f "app/src/main/AndroidManifest.xml"
 
-      - name: Commit project
+          echo "Android project is ready."
+
+      - name: Commit extracted project
         run: |
           set -e
 
@@ -78,8 +75,11 @@ jobs:
 
           git add -A
 
-          git status
+          if git diff --cached --quiet; then
+            echo "No changes to commit."
+            exit 0
+          fi
 
-          git commit -m "Extract Android project"
+          git commit -m "Extract Android project from ZIP"
 
           git push
