@@ -1,4 +1,4 @@
-name: Build APK
+name: Build APK and Release
 
 on:
   push:
@@ -6,15 +6,10 @@ on:
       - main
       - master
 
-  pull_request:
-    branches:
-      - main
-      - master
-
   workflow_dispatch:
 
 permissions:
-  contents: read
+  contents: write
 
 jobs:
   build:
@@ -40,19 +35,11 @@ jobs:
         run: |
           set -eux
 
-          echo "Checking project files..."
-
           test -f settings.gradle.kts
           test -f build.gradle.kts
           test -f gradle.properties
           test -f app/build.gradle.kts
           test -f app/src/main/AndroidManifest.xml
-
-          echo "Project files OK."
-
-      - name: Show Gradle version
-        run: |
-          gradle --version
 
       - name: Build Release APK
         run: |
@@ -62,24 +49,36 @@ jobs:
             --stacktrace \
             --no-daemon
 
-      - name: Verify APK
+      - name: Find APK
+        id: apk
         run: |
           set -eux
 
-          echo "===== APK FILES ====="
-
-          find app/build/outputs/apk/release \
+          APK=$(find app/build/outputs/apk/release \
             -type f \
             -name "*.apk" \
-            -print
+            -print -quit)
 
-          test -n "$(find app/build/outputs/apk/release -type f -name '*.apk' -print -quit)"
+          if [ -z "$APK" ]; then
+            echo "ERROR: APK was not created."
+            exit 1
+          fi
 
-          echo "APK successfully created."
+          echo "APK found: $APK"
+          echo "apk_path=$APK" >> "$GITHUB_OUTPUT"
 
-      - name: Upload APK
-        uses: actions/upload-artifact@v4
+      - name: Create GitHub Release
+        uses: softprops/action-gh-release@v2
         with:
-          name: NotificationToTelegram-APK
-          path: app/build/outputs/apk/release/*.apk
-          if-no-files-found: error
+          tag_name: "v1.0.${{ github.run_number }}"
+          name: "NotificationToTelegram v1.0.${{ github.run_number }}"
+          body: |
+            ## NotificationToTelegram
+
+            Release APK automatically built from commit:
+
+            `${{ github.sha }}`
+
+            Android Release APK is attached below.
+          files: ${{ steps.apk.outputs.apk_path }}
+          generate_release_notes: true
