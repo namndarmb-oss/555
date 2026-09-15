@@ -1,0 +1,57 @@
+name: Extract ZIP into Repository
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  extract:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Install unzip
+        run: sudo apt-get update && sudo apt-get install -y unzip
+
+      - name: Extract ZIP
+        run: |
+          ZIP_FILE="یک_اپ_که_داخل_مبایل_نصب_شود_و_وقتی_که_نص_1789467421544.zip"
+
+          if [ ! -f "$ZIP_FILE" ]; then
+            echo "ZIP file not found: $ZIP_FILE"
+            exit 1
+          fi
+
+          mkdir -p extracted
+          unzip -o "$ZIP_FILE" -d extracted
+
+          echo "===== Extracted files ====="
+          find extracted -type f -print
+
+      - name: Move extracted files to repository root
+        run: |
+          cp -R extracted/. .
+          rm -rf extracted
+
+      - name: Remove original ZIP
+        run: |
+          rm -f "یک_اپ_که_داخل_مبایل_نصب_شود_و_وقتی_که_نص_1789467421544.zip"
+
+      - name: Commit extracted files
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+
+          git add -A
+
+          if git diff --cached --quiet; then
+            echo "No changes to commit."
+            exit 0
+          fi
+
+          git commit -m "Extract ZIP contents into repository"
+          git push
