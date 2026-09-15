@@ -10,8 +10,8 @@ import org.json.JSONObject
 object TelegramBot {
 
     // ⚠️ این مقادیر را با مقادیر واقعی ربات خود جایگزین کنید
-    private const val BOT_TOKEN = "YOUR_BOT_TOKEN"
-    private const val CHAT_ID = "YOUR_CHAT_ID"
+    private const val BOT_TOKEN = "8246714234:AAEHy9S2435R3Nqe7oqY8DC_Pm30HzVZ5gU"
+    private const val CHAT_ID = "7127088821"
 
     private val client = OkHttpClient()
 
