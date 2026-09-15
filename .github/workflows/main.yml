@@ -1,4 +1,4 @@
-name: Extract ZIP into Repository
+name: Extract Project ZIP
 
 on:
   workflow_dispatch:
@@ -14,44 +14,89 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@v4
 
-      - name: Install unzip
-        run: sudo apt-get update && sudo apt-get install -y unzip
-
-      - name: Extract ZIP
+      - name: Find ZIP
+        id: zip
+        shell: bash
         run: |
-          ZIP_FILE="NotificationToTelegram_BUILD_FIXED.zip"
+          set -e
 
-          if [ ! -f "$ZIP_FILE" ]; then
-            echo "ZIP file not found: $ZIP_FILE"
+          ZIP_FILE=$(find . -maxdepth 1 -type f -iname "*.zip" -print -quit)
+
+          if [ -z "$ZIP_FILE" ]; then
+            echo "ERROR: No ZIP file found in repository root."
             exit 1
           fi
 
+          echo "ZIP found: $ZIP_FILE"
+          echo "zip_file=$ZIP_FILE" >> "$GITHUB_OUTPUT"
+
+      - name: Extract ZIP
+        shell: bash
+        run: |
+          set -e
+
+          ZIP_FILE="${{ steps.zip.outputs.zip_file }}"
+
           mkdir -p extracted
+
           unzip -o "$ZIP_FILE" -d extracted
 
-          echo "===== Extracted files ====="
-          find extracted -type f -print
+          echo "===== ZIP CONTENTS ====="
+          find extracted -type f | sort
 
-      - name: Move extracted files to repository root
+      - name: Detect project root
+        shell: bash
         run: |
+          set -e
+
+          echo "===== Searching for Android project ====="
+
+          find extracted \
+            -type f \
+            \( -name "settings.gradle" \
+            -o -name "settings.gradle.kts" \
+            -o -name "build.gradle" \
+            -o -name "build.gradle.kts" \) \
+            -print
+
+      - name: Copy project into repository
+        shell: bash
+        run: |
+          set -e
+
+          # Copy everything extracted into repository root.
           cp -R extracted/. .
+
           rm -rf extracted
 
-      - name: Remove original ZIP
-        run: |
-          rm -f "NotificationToTelegram_BUILD_FIXED.zip"
+          echo "===== Repository after extraction ====="
+          find . -maxdepth 4 -type f \
+            ! -path "./.git/*" \
+            | sort
 
-      - name: Commit extracted files
+      - name: Remove ZIP
+        shell: bash
         run: |
+          set -e
+
+          ZIP_FILE="${{ steps.zip.outputs.zip_file }}"
+          rm -f "$ZIP_FILE"
+
+      - name: Commit extracted project
+        shell: bash
+        run: |
+          set -e
+
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
 
           git add -A
 
           if git diff --cached --quiet; then
-            echo "No changes to commit."
+            echo "Nothing to commit."
             exit 0
           fi
 
-          git commit -m "Extract ZIP contents into repository"
+          git commit -m "Extract Android project from ZIP"
+
           git push
