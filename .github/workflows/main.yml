@@ -19,7 +19,7 @@ jobs:
 
       - name: Extract ZIP
         run: |
-          ZIP_FILE="یک_اپ_که_داخل_مبایل_نصب_شود_و_وقتی_که_نص_1789467421544.zip"
+          ZIP_FILE="NotificationToTelegram_BUILD_FIXED.zip"
 
           if [ ! -f "$ZIP_FILE" ]; then
             echo "ZIP file not found: $ZIP_FILE"
@@ -39,7 +39,7 @@ jobs:
 
       - name: Remove original ZIP
         run: |
-          rm -f "یک_اپ_که_داخل_مبایل_نصب_شود_و_وقتی_که_نص_1789467421544.zip"
+          rm -f "NotificationToTelegram_BUILD_FIXED.zip"
 
       - name: Commit extracted files
         run: |
