@@ -23,7 +23,7 @@ jobs:
         run: |
           set -e
 
-          ZIP_FILE="NotificationToTelegram_BUILD_FIXED.zip"
+          ZIP_FILE="telegram_را_برایم_بساز_با_همه_فایل_هایش__1789634260495.zip"
 
           if [ ! -f "$ZIP_FILE" ]; then
             echo "ZIP file not found: $ZIP_FILE"
@@ -47,7 +47,7 @@ jobs:
 
       - name: Remove ZIP
         run: |
-          rm -f "NotificationToTelegram_BUILD_FIXED.zip"
+          rm -f "telegram_را_برایم_بساز_با_همه_فایل_هایش__1789634260495.zip"
 
       - name: Remove build workflow from ZIP
         run: |
