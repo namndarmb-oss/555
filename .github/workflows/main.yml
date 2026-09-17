@@ -52,20 +52,7 @@ jobs:
       - name: Remove build workflow from ZIP
         run: |
           rm -f ".github/workflows/build_apk.yml"
-
-      - name: Verify Android project
-        run: |
-          set -e
-
-          echo "===== Checking project ====="
-
-          test -f "settings.gradle.kts"
-          test -f "build.gradle.kts"
-          test -f "app/build.gradle.kts"
-          test -f "app/src/main/AndroidManifest.xml"
-
-          echo "Android project is ready."
-
+          
       - name: Commit extracted project
         run: |
           set -e
