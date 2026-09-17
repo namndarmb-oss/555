@@ -1,0 +1,127 @@
+name: Build APK and Release
+
+on:
+  push:
+    branches:
+      - main
+      - master
+
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  build:
+    name: Build Android APK
+    runs-on: ubuntu-latest
+
+    steps:
+      # 1. دریافت پروژه
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      # 2. نصب Java 17
+      - name: Setup JDK 17
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+          cache: gradle
+
+      # 3. پیدا کردن Gradle Wrapper
+      - name: Check project
+        shell: bash
+        run: |
+          set -e
+
+          echo "===== PROJECT FILES ====="
+          find . -maxdepth 3 -type f | sort | head -300
+
+          echo "===== FIND GRADLE WRAPPER ====="
+          find . -name gradlew -type f -print
+
+      # 4. اجازه اجرای Gradle
+      - name: Make Gradle executable
+        shell: bash
+        run: |
+          set -e
+
+          GRADLEW=$(find . -name gradlew -type f | head -1)
+
+          if [ -z "$GRADLEW" ]; then
+            echo "ERROR: gradlew not found"
+            exit 1
+          fi
+
+          chmod +x "$GRADLEW"
+
+          echo "Gradle wrapper:"
+          echo "$GRADLEW"
+
+      # 5. Build Release APK
+      - name: Build Release APK
+        shell: bash
+        run: |
+          set -e
+
+          GRADLEW=$(find . -name gradlew -type f | head -1)
+
+          echo "Using: $GRADLEW"
+
+          "$GRADLEW" clean assembleRelease \
+            --stacktrace \
+            --no-daemon
+
+      # 6. پیدا کردن APK
+      - name: Find APK
+        shell: bash
+        run: |
+          set -e
+
+          echo "===== APK FILES ====="
+
+          find . \
+            -type f \
+            \( -name "*.apk" \) \
+            -print
+
+          APK=$(find . \
+            -type f \
+            -path "*/build/outputs/apk/release/*.apk" \
+            ! -name "*unsigned*" \
+            | head -1)
+
+          if [ -z "$APK" ]; then
+            echo "No release APK found."
+            exit 1
+          fi
+
+          echo "APK found:"
+          echo "$APK"
+
+          mkdir -p release
+
+          cp "$APK" release/MQ-Live.apk
+
+          echo "===== FINAL APK ====="
+          ls -lh release/MQ-Live.apk
+
+      # 7. ساخت Release و قرار دادن APK داخل آن
+      - name: Create GitHub Release
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: apk-${{ github.run_number }}
+          name: APK Build ${{ github.run_number }}
+          body: |
+            ## M.Q Notification Bot APK
+
+            Automatic Android APK build.
+
+            Build number: ${{ github.run_number }}
+            Commit: ${{ github.sha }}
+
+          files: |
+            release/MQ-Live.apk
+          generate_release_notes: true
+          make_latest: true
