@@ -17,110 +17,175 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
-      # 1. دریافت پروژه
+
+      # ==============================
+      # Checkout
+      # ==============================
       - name: Checkout repository
         uses: actions/checkout@v4
 
-      # 2. نصب Java 17
+      # ==============================
+      # Java 17
+      # ==============================
       - name: Setup JDK 17
         uses: actions/setup-java@v4
         with:
           distribution: temurin
           java-version: '17'
-          cache: gradle
 
-      # 3. پیدا کردن Gradle Wrapper
-      - name: Check project
+      # ==============================
+      # Show project structure
+      # ==============================
+      - name: Inspect project
         shell: bash
         run: |
           set -e
 
-          echo "===== PROJECT FILES ====="
-          find . -maxdepth 3 -type f | sort | head -300
+          echo "=============================="
+          echo "PROJECT STRUCTURE"
+          echo "=============================="
 
-          echo "===== FIND GRADLE WRAPPER ====="
-          find . -name gradlew -type f -print
+          find . -maxdepth 4 -type f | sort | head -500
 
-      # 4. اجازه اجرای Gradle
-      - name: Make Gradle executable
+          echo ""
+          echo "=============================="
+          echo "GRADLE FILES"
+          echo "=============================="
+
+          find . -type f \
+            \( -name "build.gradle" \
+            -o -name "build.gradle.kts" \
+            -o -name "settings.gradle" \
+            -o -name "settings.gradle.kts" \
+            -o -name "gradlew" \) \
+            -print
+
+      # ==============================
+      # Install Gradle
+      # ==============================
+      - name: Setup Gradle
+        uses: gradle/actions/setup-gradle@v4
+        with:
+          gradle-version: '8.10.2'
+
+      # ==============================
+      # Check Gradle
+      # ==============================
+      - name: Check Gradle
         shell: bash
         run: |
           set -e
 
-          GRADLEW=$(find . -name gradlew -type f | head -1)
+          echo "Gradle version:"
+          gradle --version
 
-          if [ -z "$GRADLEW" ]; then
-            echo "ERROR: gradlew not found"
+      # ==============================
+      # Find Android project
+      # ==============================
+      - name: Find Android project
+        shell: bash
+        run: |
+          set -e
+
+          echo "Searching for settings.gradle..."
+
+          SETTINGS=$(find . -type f \
+            \( -name "settings.gradle" -o -name "settings.gradle.kts" \) \
+            | head -1)
+
+          if [ -z "$SETTINGS" ]; then
+            echo "ERROR: settings.gradle or settings.gradle.kts not found."
+            echo ""
+            echo "The repository does not currently contain a recognizable Gradle Android project."
             exit 1
           fi
 
-          chmod +x "$GRADLEW"
+          PROJECT_DIR=$(dirname "$SETTINGS")
 
-          echo "Gradle wrapper:"
-          echo "$GRADLEW"
+          echo "Settings file:"
+          echo "$SETTINGS"
 
-      # 5. Build Release APK
+          echo "Project directory:"
+          echo "$PROJECT_DIR"
+
+          echo "PROJECT_DIR=$PROJECT_DIR" >> "$GITHUB_ENV"
+
+      # ==============================
+      # Build Release APK
+      # ==============================
       - name: Build Release APK
         shell: bash
         run: |
           set -e
 
-          GRADLEW=$(find . -name gradlew -type f | head -1)
+          cd "$PROJECT_DIR"
 
-          echo "Using: $GRADLEW"
+          echo "=============================="
+          echo "BUILDING RELEASE APK"
+          echo "=============================="
 
-          "$GRADLEW" clean assembleRelease \
+          gradle clean assembleRelease \
             --stacktrace \
             --no-daemon
 
-      # 6. پیدا کردن APK
+      # ==============================
+      # Find APK
+      # ==============================
       - name: Find APK
         shell: bash
         run: |
           set -e
 
-          echo "===== APK FILES ====="
+          echo "=============================="
+          echo "SEARCHING FOR APK"
+          echo "=============================="
 
-          find . \
+          find "$PROJECT_DIR" \
             -type f \
-            \( -name "*.apk" \) \
+            -name "*.apk" \
             -print
 
-          APK=$(find . \
+          APK=$(find "$PROJECT_DIR" \
             -type f \
             -path "*/build/outputs/apk/release/*.apk" \
             ! -name "*unsigned*" \
             | head -1)
 
           if [ -z "$APK" ]; then
-            echo "No release APK found."
+            echo ""
+            echo "ERROR: Release APK was not generated."
             exit 1
           fi
 
-          echo "APK found:"
+          echo ""
+          echo "APK FOUND:"
           echo "$APK"
 
-          mkdir -p release
+          mkdir -p "$GITHUB_WORKSPACE/release"
 
-          cp "$APK" release/MQ-Live.apk
+          cp "$APK" "$GITHUB_WORKSPACE/release/MQ-Live.apk"
 
-          echo "===== FINAL APK ====="
-          ls -lh release/MQ-Live.apk
+          echo ""
+          echo "FINAL APK:"
+          ls -lh "$GITHUB_WORKSPACE/release/MQ-Live.apk"
 
-      # 7. ساخت Release و قرار دادن APK داخل آن
+      # ==============================
+      # GitHub Release
+      # ==============================
       - name: Create GitHub Release
         uses: softprops/action-gh-release@v2
         with:
           tag_name: apk-${{ github.run_number }}
-          name: APK Build ${{ github.run_number }}
+          name: M.Q APK ${{ github.run_number }}
           body: |
-            ## M.Q Notification Bot APK
+            # M.Q Android APK
 
-            Automatic Android APK build.
+            Automatically built from commit:
 
-            Build number: ${{ github.run_number }}
-            Commit: ${{ github.sha }}
+            ${{ github.sha }}
 
+            Build number:
+            ${{ github.run_number }}
           files: |
             release/MQ-Live.apk
           generate_release_notes: true
