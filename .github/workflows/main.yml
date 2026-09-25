@@ -23,7 +23,7 @@ jobs:
         run: |
           set -e
 
-          ZIP_FILE="termux-app-luxury-redesigned.zip"
+          ZIP_FILE="termux-app-master.zip"
 
           if [ ! -f "$ZIP_FILE" ]; then
             echo "ZIP file not found: $ZIP_FILE"
@@ -47,7 +47,7 @@ jobs:
 
       - name: Remove ZIP
         run: |
-          rm -f "termux-app-luxury-redesigned.zip"
+          rm -f "termux-app-master.zip"
 
       - name: Remove build workflow from ZIP
         run: |
